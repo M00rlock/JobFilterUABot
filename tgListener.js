@@ -67,8 +67,11 @@ function parseJob(msg) {
   const lines = text.split('\n').filter(l => l.trim());
   if (!lines.length) return null;
 
-  let title = lines[0].replace(/[*#⃣🔹🔸🔺🔥💼📌📍💻⚡✅🟢🔵🟣]/g, '').trim();
-  if (!title || title.length > 200) return null;
+  const rawFirst = lines[0].replace(/[*#⃣🔹🔸🔺🔥💼📌📍💻⚡✅🟢🔵🟣🔘▪️]/g, '').trim();
+  if (!rawFirst || rawFirst.length > 200) return null;
+
+  const title = extractTitle(rawFirst);
+  if (!title) return null;
 
   return {
     title,
@@ -79,6 +82,24 @@ function parseJob(msg) {
   };
 }
 
+function extractTitle(raw) {
+  const patterns = [
+    /looking for[:\s]*([^▪📌🔥]+)/i,
+    /шукаємо[:\s]*([^▪📌🔥]+)/i,
+    /вакансі[яї][:\s]*([^▪📌🔥]+)/i,
+    /потрібен[:\s]*([^▪📌🔥]+)/i,
+    /потрібна[:\s]*([^▪📌🔥]+)/i,
+    /потрібно[:\s]*([^▪📌🔥]+)/i,
+  ];
+
+  for (const p of patterns) {
+    const m = raw.match(p);
+    if (m) return m[1].trim().replace(/\s+/g, ' ');
+  }
+
+  return raw.replace(/^[^a-zA-Zа-яА-ЯіїєґІЇЄҐ]*/, '').trim().split(/[▪📌🔥]/)[0].trim();
+}
+
 function extractUrl(text) {
   const match = text.match(/https?:\/\/[^\s\n]+/);
   return match ? match[0] : '';
@@ -87,6 +108,7 @@ function extractUrl(text) {
 export async function scanHistory(daysBack = 7) {
   const allJobs = [];
   const since = Math.floor(Date.now() / 1000) - daysBack * 24 * 3600;
+  console.log(`scanning history since ${new Date(since * 1000).toISOString()}`);
 
   for (const ch of CHANNELS) {
     try {
@@ -96,13 +118,17 @@ export async function scanHistory(daysBack = 7) {
       }));
 
       const msgs = result.messages || [];
+      let matched = 0;
       for (const msg of msgs) {
         if (msg._ === 'message' && msg.message && msg.date >= since) {
           const job = parseJob(msg);
-          if (job) allJobs.push(job);
+          if (job) {
+            allJobs.push(job);
+            matched++;
+          }
         }
       }
-      console.log(`scanned ${msgs.length} msgs from ${ch}`);
+      console.log(`scanned ${msgs.length} msgs from ${ch}, parsed ${matched} jobs`);
     } catch (e) {
       console.error(`failed to scan ${ch}:`, e.message);
     }
