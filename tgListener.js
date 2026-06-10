@@ -17,7 +17,7 @@ export async function createClient() {
     new StringSession(sessionStr),
     Number(process.env.TG_API_ID),
     process.env.TG_API_HASH,
-    { connectionRetries: 5 }
+    { connectionRetries: 5 },
   );
   return client;
 }
@@ -30,7 +30,6 @@ export async function login(phoneNumber, onCode, onPassword) {
     onError: (err) => console.error('login error:', err),
   });
   writeFileSync(SESSION_FILE, client.session.save());
-  console.log('session saved');
 }
 
 export async function connectWithSession() {
@@ -72,10 +71,7 @@ export async function scanHistory(daysBack = 7) {
       for (const msg of msgs) {
         if (msg.message && msg.date >= since) {
           const job = parseJob(msg);
-          if (job) {
-            allJobs.push(job);
-            matched++;
-          }
+          if (job) { allJobs.push(job); matched++; }
         }
       }
       console.log(`scanned ${msgs.length} msgs from ${ch}, parsed ${matched} jobs`);
@@ -87,43 +83,77 @@ export async function scanHistory(daysBack = 7) {
   return allJobs;
 }
 
-function parseJob(msg) {
-  const text = msg.message;
-  const lines = text.split('\n').filter(l => l.trim());
-  if (!lines.length) return null;
+// ── job parsing ──
 
-  const rawFirst = lines[0]
-    .replace(/[*#⃣🔹🔸🔺🔥💼📌📍💻⚡✅🟢🔵🟣🔘▪️▫️☑️]/g, '')
-    .trim();
+const JOB_INDICATORS = [
+  /(?:looking for|шукаємо|потрібен|потрібна|потрібно|вакансі[яї]|відкрит[ао]|позиці[яї]|приєднуйся)/i,
+  /#(?:vacancy|вакансія|remote|office|job|робота|роботу|вакансію)/i,
+  /(?:відгукнутися|apply|надіслати|резюме)/i,
+];
 
-  if (!rawFirst || rawFirst.length > 200) return null;
-
-  const title = extractTitle(rawFirst);
-  if (!title) return null;
-  if (title.length > 100) return null;
-
-  return { title, description: text, url: extractUrl(text), company: '', location: 'Ukraine' };
+function isJobPost(text) {
+  const hasContact = /@[a-zA-Z0-9_.-]{3,}/.test(text) || /https?:\/\/[^\s]+/.test(text);
+  const hasIndicator = JOB_INDICATORS.some(r => r.test(text));
+  return hasContact && hasIndicator;
 }
 
-function extractTitle(raw) {
-  const patterns = [
-    /(?:looking for|шукаємо|потрібен|потрібна|потрібно|вакансія|вакансії)[:\s─]+([^\n▪📌🔥]{3,80})/i,
-    /^[^a-zA-Zа-яА-ЯіїєґІЇЄҐ]{0,5}([A-Za-zА-Яа-яіїєґІЇЄҐ][^▪📌🔥\n]{3,80})/,
+function extractTitle(text) {
+  const firstLine = text.split('\n')[0];
+  if (!firstLine) return null;
+
+  let clean = firstLine
+    .replace(/[*#⃣▪️▫️☑️🔹🔸🔺🔥💼📌📍💻⚡✅🟢🔵🟣🔘]/g, '')
+    .replace(/^(?:\s*#\w+\s*)+/, '')
+    .trim();
+
+  if (!clean || clean.length < 3 || clean.length > 120) return null;
+
+  const structured = [
+    /(?:looking for|шукаємо|потрібен|потрібна|потрібно|вакансі[яї])[:\s─]*([A-Za-zА-Яа-яіїєґІЇЄҐ][^▪📌🔥\n]{3,80})/i,
   ];
 
-  for (const p of patterns) {
-    const m = raw.match(p);
-    if (m) return m[1].trim().replace(/\s+/g, ' ');
+  for (const p of structured) {
+    const m = clean.match(p);
+    if (m && m[1]) {
+      const t = m[1].replace(/\s+/g, ' ').trim();
+      if (t.length >= 3 && t.length <= 80) return t;
+    }
+  }
+
+  if (/develop|engineer|розробник|інженер|architect|manager|lead|senior|specialist|designer|analyst|devops|admin/i.test(clean) && clean.length < 60) {
+    return clean.replace(/^[^a-zA-Zа-яА-ЯіїєґІЇЄҐ]+/, '').trim();
   }
 
   return null;
 }
 
-function extractUrl(text) {
-  const match = text.match(/https?:\/\/[^\s\n]+/);
-  return match ? match[0] : '';
+function extractLink(text) {
+  const urlMatch = text.match(/https?:\/\/[^\s\n]+/);
+  if (urlMatch) return urlMatch[0];
+
+  const emailMatch = text.match(/[\w.+-]+@[\w-]+\.[\w.+-]+/);
+  if (emailMatch) return `mailto:${emailMatch[0]}`;
+
+  const tgMatch = text.match(/@[a-zA-Z0-9_.-]{3,}/);
+  if (tgMatch) return `https://t.me/${tgMatch[0].slice(1)}`;
+
+  return '';
 }
 
-export function getChannels() {
-  return CHANNELS;
+function parseJob(msg) {
+  const text = msg.message;
+  if (!isJobPost(text)) return null;
+
+  const title = extractTitle(text);
+  if (!title) return null;
+
+  return {
+    title,
+    description: text,
+    url: extractLink(text),
+    company: '',
+    location: 'Ukraine',
+  };
 }
+
+export function getChannels() { return CHANNELS; }

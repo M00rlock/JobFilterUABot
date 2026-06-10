@@ -18,12 +18,13 @@ function ask(q) { return new Promise(resolve => rl.question(q, resolve)); }
 // ── helpers ──
 
 async function sendJob(job) {
-  const stars = job.score >= 10 ? '🔥' : job.score >= 6 ? '✅' : '📌';
-  const msg = `${stars} ${job.title}
+  const icon = job.score >= 10 ? '🔥' : job.score >= 6 ? '✅' : '📌';
+  const link = job.url ? `🔗 ${job.url}` : '';
+  const msg = `${icon} ${job.title}
 
 📊 Score: ${job.score}
 📍 ${job.location || 'Remote/Unknown'}
-🔗 ${job.url}`;
+${link}`;
   await bot.sendMessage(CHAT_ID, msg, { disable_web_page_preview: true });
 }
 
