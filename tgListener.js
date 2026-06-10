@@ -73,7 +73,7 @@ export async function scanHistory(daysBack = 7) {
       let matched = 0;
 
       for (const msg of msgs) {
-        if (msg.className === 'Message' && msg.message && msg.date >= since) {
+        if (msg.message && msg.date && typeof msg.message === 'string' && msg.date >= since) {
           if (!matched) console.log(`[first ${ch}] ${msg.message.slice(0, 120).replace(/\n/g,' | ')}`);
           const job = parseJob(msg);
           if (job) { allJobs.push(job); matched++; }
