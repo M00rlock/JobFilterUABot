@@ -118,6 +118,8 @@ function stripEmoji(s) {
   return s.replace(EMOJI_RE, '').replace(/[*#⃣▪️▫️☑️🔹🔸🔺🔥💼📌📍💻⚡✅🟢🔵🟣🔘👉]/g, '').trim();
 }
 
+const ROLE_WORD_RE = /\b(developer|engineer|розробник|інженер|architect|backend|frontend|fullstack|devops|manager|senior|lead|designer|specialist|admin|software|data|qa|tester|analyst|product|head|director|technical|systems|system|team|engineering|middle|trainee|intern|junior|graphic|smm|digital)s?\b/i;
+
 // Titles that start with these are not real job titles
 const NON_TITLE_RE = /^(мінімум|до|від|для|про|та|але|це|хто|що|як|my|this|we|our|the|a\b|an\b)/i;
 const NEWS_VERBS = /(створив|створила|випустив|запустив|представив|анонсував|повідомив|розповів|опублікував|вийшло|вийшла)/i;
@@ -133,7 +135,7 @@ function extractTitle(text) {
     const after = firstLine.slice(indicator.index + indicator[0].length);
     const title = stripEmoji(after).split(/\s+/).slice(0, 12).join(' ');
     if (title && title.length >= 3 && title.length <= 80 && !NON_TITLE_RE.test(title) && !NEWS_VERBS.test(title)) {
-      if (/(developer|engineer|розробник|інженер|architect|backend|frontend|fullstack|full.?stack|devops|manager|senior|lead|designer|specialist|admin|software|data|qa|tester|analyst|product|head|director|technical|systems|system|team|engineering|middle|trainee|intern|junior|graphic|smm|digital)\b/i.test(title)) return title;
+      if (ROLE_WORD_RE.test(title)) return title;
     }
   }
 
@@ -149,7 +151,7 @@ function extractTitle(text) {
 
   // Method 3: explicit JS keyword (word boundary) in full text — accept first line
   if (/\b(javascript|node|typescript|react|vue|angular)\b/i.test(text)) {
-    if (!NON_TITLE_RE.test(clean) && !NEWS_VERBS.test(clean) && /(developer|engineer|розробник|інженер|backend|frontend|fullstack|designer|manager|qa|tester|analyst|architect|admin|specialist|head|director|lead|senior|junior|middle|trainee|intern)\b/i.test(clean)) return clean;
+    if (!NON_TITLE_RE.test(clean) && !NEWS_VERBS.test(clean) && ROLE_WORD_RE.test(clean)) return clean;
   }
 
   return null;
