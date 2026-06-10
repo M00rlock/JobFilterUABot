@@ -5,6 +5,7 @@ const LEARNING_TITLE_RE = /\b(course|webinar|workshop|bootcamp|tutorial|lesson|l
 const TARGET_TITLE_RE = /\b(javascript|js|node(?:\.js)?|typescript|ts|react|vue|angular|frontend|front[-\s]?end|backend|back[-\s]?end|full[-\s]?stack|developer)\b|розробник[а-яіїєґ']*/iu;
 const GENERIC_ENGINEER_RE = /\bsoftware\s+engineer\b|\bengineer\b|інженер[а-яіїєґ']*/iu;
 const NEGATIVE_RE = /\b(junior|júnior|jãºnior|intern|internship|trainee)\b|стаж|стажування/i;
+const RESUME_RE = /^резюме|от\s*@|ищу\s+работ[уы]|в\s+поиске|\$\d+\s*[-–—]\s*\d+\s*\/\s*ч/i;
 const RUSSIA_RE = /москв|рос(?:і[яї]|си(?:я|йськ))|russia|moscow|рф\b|rf\b|proglib/i;
 const STACK_PENALTIES = [
   ['java', /\bjava\b(?!\s*script)/i],
@@ -63,6 +64,7 @@ export function explainScoreJob(job) {
   const negative = fullText.match(NEGATIVE_RE)?.[0];
   if (negative) return { score: -100, reason: `negative keyword: ${negative}` };
   if (RUSSIA_RE.test(fullText)) return { score: -100, reason: 'russia/moscow' };
+  if (RESUME_RE.test(titleText) || RESUME_RE.test(fullText)) return { score: -100, reason: 'resume' };
   if (LEARNING_TITLE_RE.test(titleText)) return { score: -100, reason: 'learning content title' };
 
   // Penalty for other stacks / non-JS roles
