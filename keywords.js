@@ -1,8 +1,8 @@
 export const roleKeywords = [
   'backend','node','nodejs','senior','старший','сеньйор',
   'lead','лід','tech lead','team lead','architect','архітектор',
-  'full stack','fullstack','розробник','developer','engineer',
-  'devops', 'data', 'software', 'typescript',
+  'full stack','fullstack','розробник','developer',
+  'data', 'software', 'typescript',
   'react', 'reactjs', 'angular', 'vue', 'vuejs',
   'nextjs', 'express', 'nest',
 ];
