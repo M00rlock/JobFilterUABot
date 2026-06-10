@@ -99,16 +99,19 @@ const EMOJI_RE = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{27BF}\u{2B50}\u{2702}-\u{27B0}
 
 function isJobPost(text) {
   const hasContact = /@[a-zA-Z0-9_.-]{3,}/.test(text) || /https?:\/\/[^\s]+/.test(text);
-  if (!hasContact) return false;
-
+  const hasIndicator = JOB_INDICATORS.some(r => r.test(text));
   const firstLine = text.split('\n')[0];
   const looksLikeDev = /(?:developer|engineer|розробник|інженер|backend|frontend|fullstack|devops|architect|manager|lead|senior|middle|specialist|designer|admin|data|software)/i.test(firstLine);
   const hasJS = /(?:javascript|js|node|typescript|ts|react|vue|angular)/i.test(text);
 
-  if (looksLikeDev || hasJS) return true;
+  // Old: indicator-based (no contact required)
+  if (hasIndicator && looksLikeDev) return true;
+  if (hasIndicator && hasContact) return true;
 
-  const hasIndicator = JOB_INDICATORS.some(r => r.test(text));
-  return hasIndicator;
+  // New: contact + dev role or JS keywords
+  if (hasContact && (looksLikeDev || hasJS)) return true;
+
+  return false;
 }
 
 function stripEmoji(s) {
@@ -118,7 +121,7 @@ function stripEmoji(s) {
 // Titles that start with these are not real job titles
 const NON_TITLE_RE = /^(мінімум|до|від|для|про|та|але|це|хто|що|як|my|this|we|our|the|a\b|an\b)/i;
 const NEWS_VERBS = /(створив|створила|випустив|запустив|представив|анонсував|повідомив|розповів|опублікував|вийшло|вийшла)/i;
-const TITLE_FIRST_WORD = /^(senior|middle|lead|junior|head|chief|full.?stack|frontend|backend|devops|software|data|tech|technical|розробник|інженер|архітектор|інженер|specialist|manager|engineer|developer|architect|director|systems|system|embedded|hardware|python|java|go|rust|c\+\+|ruby|qa|tester|analyst|product|project|team|engineering|strong|middle\+|trainee|intern|graphic|smm|digital)/i;
+const TITLE_FIRST_WORD = /^(senior|middle|lead|junior|head|chief|full|frontend|backend|devops|software|data|tech|technical|розробник|інженер|архітектор|specialist|manager|engineer|developer|architect|director|systems|system|embedded|hardware|python|java|go|rust|c\+\+|ruby|qa|tester|analyst|product|project|team|engineering|strong|middle\+|trainee|intern|graphic|smm|digital)/i;
 
 function extractTitle(text) {
   const firstLine = text.split('\n')[0];
