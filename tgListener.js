@@ -4,6 +4,7 @@ import { readFileSync, writeFileSync, existsSync } from 'fs';
 
 const SESSION_FILE = 'tg_session.txt';
 const CHANNELS = (process.env.TG_CHANNELS || '').split(',').map(s => s.trim()).filter(Boolean);
+const SEEN_FILE = 'seen_jobs.txt';
 
 let client = null;
 
@@ -81,6 +82,33 @@ function parseJob(msg) {
 function extractUrl(text) {
   const match = text.match(/https?:\/\/[^\s\n]+/);
   return match ? match[0] : '';
+}
+
+export async function scanHistory(daysBack = 7) {
+  const allJobs = [];
+  const since = Math.floor(Date.now() / 1000) - daysBack * 24 * 3600;
+
+  for (const ch of CHANNELS) {
+    try {
+      const result = await client.invoke(new Api.messages.GetHistory({
+        peer: ch,
+        limit: 100,
+      }));
+
+      const msgs = result.messages || [];
+      for (const msg of msgs) {
+        if (msg._ === 'message' && msg.message && msg.date >= since) {
+          const job = parseJob(msg);
+          if (job) allJobs.push(job);
+        }
+      }
+      console.log(`scanned ${msgs.length} msgs from ${ch}`);
+    } catch (e) {
+      console.error(`failed to scan ${ch}:`, e.message);
+    }
+  }
+
+  return allJobs;
 }
 
 export function getChannels() {

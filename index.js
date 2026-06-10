@@ -3,7 +3,7 @@ import TelegramBot from 'node-telegram-bot-api';
 import readline from 'readline';
 import { fetchJobs } from './fetchJobs.js';
 import { filterJobs } from './filterJobs.js';
-import { createClient, isLoggedIn, login, connectWithSession, joinChannels, onMessage } from './tgListener.js';
+import { createClient, isLoggedIn, login, connectWithSession, joinChannels, onMessage, scanHistory } from './tgListener.js';
 
 const bot = new TelegramBot(process.env.BOT_TOKEN, { polling: true });
 const CHAT_ID = process.env.CHAT_ID;
@@ -44,6 +44,20 @@ async function initTG() {
 
   await joinChannels();
   console.log('watching:', process.env.TG_CHANNELS);
+
+  const historyJobs = await scanHistory(7);
+  if (historyJobs.length) {
+    const filtered = filterJobs(historyJobs);
+    console.log(`history: ${historyJobs.length} jobs, filtered ${filtered.length}`);
+    for (const job of filtered) {
+      try {
+        await sendJob(job);
+        console.log('sent from history:', job.title);
+      } catch (e) {
+        console.error('send failed from history:', job.title, e.message);
+      }
+    }
+  }
 
   onMessage(async (job) => {
     const filtered = filterJobs([job]);
