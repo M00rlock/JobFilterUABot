@@ -90,7 +90,7 @@ export async function scanHistory(daysBack = 7, limit = 200) {
 // ── job parsing ──
 
 const JOB_INDICATORS = [
-  /(?:looking for|шукаємо|потрібен|потрібна|потрібно|вакансі[яї]|відкрит[ао]|позиці[яї]|приєднуйся)/i,
+  /(?:looking for|шукаємо|потрібен|потрібна|потрібно|вакансі[яї]|відкрит[ао]|позиці[яї]|приєднуйся|we are hiring|we need|we are looking)/i,
   /#(?:vacancy|вакансія|remote|office|job|робота|роботу|вакансію)/i,
   /(?:відгукнутися|apply|надіслати|резюме)/i,
 ];
@@ -99,32 +99,52 @@ const EMOJI_RE = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{27BF}\u{2B50}\u{2702}-\u{27B0}
 
 function isJobPost(text) {
   const hasContact = /@[a-zA-Z0-9_.-]{3,}/.test(text) || /https?:\/\/[^\s]+/.test(text);
+  if (!hasContact) return false;
+
+  const firstLine = text.split('\n')[0];
+  const looksLikeDev = /(?:developer|engineer|розробник|інженер|backend|frontend|fullstack|devops|architect|manager|lead|senior|middle|specialist|designer|admin|data|software)/i.test(firstLine);
+  const hasJS = /(?:javascript|js|node|typescript|ts|react|vue|angular)/i.test(text);
+
+  if (looksLikeDev || hasJS) return true;
+
   const hasIndicator = JOB_INDICATORS.some(r => r.test(text));
-  if (hasIndicator && hasContact) return true;
-  if (hasIndicator && /(?:senior|lead|developer|engineer|розробник|architect|manager|devops|backend|frontend|fullstack|data)/i.test(text)) return true;
-  return false;
+  return hasIndicator;
 }
 
 function stripEmoji(s) {
   return s.replace(EMOJI_RE, '').replace(/[*#⃣▪️▫️☑️🔹🔸🔺🔥💼📌📍💻⚡✅🟢🔵🟣🔘👉]/g, '').trim();
 }
 
+// Titles that start with these are not real job titles
+const NON_TITLE_RE = /^(мінімум|до|від|для|про|та|але|це|хто|що|як|my|this|we|our|the|a\b|an\b)/i;
+const NEWS_VERBS = /(створив|створила|випустив|запустив|представив|анонсував|повідомив|розповів|опублікував|вийшло|вийшла)/i;
+const TITLE_FIRST_WORD = /^(senior|middle|lead|junior|head|chief|full.?stack|frontend|backend|devops|software|data|tech|technical|розробник|інженер|архітектор|інженер|specialist|manager|engineer|developer|architect|director|systems|system|embedded|hardware|python|java|go|rust|c\+\+|ruby|qa|tester|analyst|product|project|team|engineering|strong|middle\+|trainee|intern|graphic|smm|digital)/i;
+
 function extractTitle(text) {
   const firstLine = text.split('\n')[0];
   if (!firstLine) return null;
 
+  // Method 1: indicator prefix
   const indicator = firstLine.match(/(?:looking for|шукаємо|потрібен|потрібна|потрібно|вакансі[яї])[:\s─–—]*/i);
   if (indicator) {
     const after = firstLine.slice(indicator.index + indicator[0].length);
     const title = stripEmoji(after).split(/\s+/).slice(0, 12).join(' ');
-    if (title && title.length >= 3 && title.length <= 80) return title;
+    if (title && title.length >= 3 && title.length <= 80 && !NON_TITLE_RE.test(title) && !NEWS_VERBS.test(title)) return title;
   }
 
+  // Method 2: first line looks like a dev/tech role
   const clean = stripEmoji(firstLine);
   if (!clean || clean.length < 3 || clean.length > 80) return null;
+  if (NON_TITLE_RE.test(clean) || NEWS_VERBS.test(clean)) return null;
 
-  if (/(?:developer|engineer|розробник|інженер|architect|manager|analyst|devops|admin|backend|frontend|fullstack|specialist|designer|lead|senior)/i.test(clean)) {
+  const firstWord = clean.split(/\s+/)[0];
+  if (TITLE_FIRST_WORD.test(firstWord)) {
     return clean;
+  }
+
+  // Method 3: explicit JS keyword (word boundary) in full text — accept first line
+  if (/\b(javascript|node|typescript|react|vue|angular)\b/i.test(text)) {
+    if (!NON_TITLE_RE.test(clean) && !NEWS_VERBS.test(clean)) return clean;
   }
 
   return null;

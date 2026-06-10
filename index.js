@@ -3,7 +3,6 @@ import TelegramBot from 'node-telegram-bot-api';
 import readline from 'readline';
 import { fetchJobs } from './fetchJobs.js';
 import { filterJobs } from './filterJobs.js';
-import { scoreJob } from './scoreJob.js';
 import {
   createClient, isLoggedIn, login, connectWithSession,
   joinChannels, onMessage, scanHistory, getChannels, resolveChannel, getClient,
@@ -96,8 +95,6 @@ bot.onText(/\/now/, async (msg) => {
     }
     const filtered = filterJobs(jobs);
       if (!filtered.length) {
-        console.log(`/now: 0 matched, sample titles:`);
-        for (const j of jobs.slice(0, 10)) console.log(`  [${scoreJob(j)}] "${j.title}"`);
         await bot.sendMessage(msg.chat.id, `😕 Жодна вакансія не пройшла фільтр (розпарсено ${jobs.length} повідомлень).`);
       return;
     }
@@ -137,14 +134,6 @@ async function initTG() {
   const historyJobs = await scanHistory(14);
   const filtered = filterJobs(historyJobs);
   console.log(`history: ${historyJobs.length} parsed, ${filtered.length} matched`);
-  if (filtered.length === 0 && historyJobs.length > 0) {
-    console.log('--- sample parsed titles (first 20) ---');
-    for (const j of historyJobs.slice(0, 20)) {
-      const s = scoreJob(j);
-      const r = j.url ? j.url.slice(0, 50) : '';
-      console.log(`  [${s}] "${j.title}" ${r}`);
-    }
-  }
   await tell(`📊 Сканування: ${historyJobs.length} повідомлень, знайдено ${filtered.length} вакансій`);
 
   for (const job of filtered) {
