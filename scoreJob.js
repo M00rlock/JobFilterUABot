@@ -24,6 +24,10 @@ export function scoreJob(job) {
   }
   if (/\bgo\b(?!\s*lang)/i.test(fullText) && !fullText.includes('golang')) return -100;
 
+  // Block non-dev roles by title
+  const nonDevTitle = /\b(smm|marketing|graphic designer|project manager|account manager|analyst|hr)\b/i;
+  if (nonDevTitle.test(titleText) && !/(developer|engineer|розробник|інженер|architect|full.?stack|backend|frontend|devops)/i.test(titleText)) return -100;
+
   let score =
     matchCount(fullText, roleKeywords) * 5 +
     matchCount(fullText, techKeywords) * 3 +
