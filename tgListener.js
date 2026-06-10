@@ -59,7 +59,7 @@ export async function resolveChannel(username) {
   } catch { return null; }
 }
 
-export async function scanHistory(daysBack = 7, limit = 200) {
+export async function scanHistory(daysBack = 14, limit = 500) {
   const allJobs = [];
   const since = Math.floor(Date.now() / 1000) - daysBack * 24 * 3600;
 
@@ -82,6 +82,7 @@ export async function scanHistory(daysBack = 7, limit = 200) {
           }
         }
       }
+      console.log(`  scanned ${ch}: ${msgs.length} msgs, ${matched} parsed`);
     } catch (e) {
       console.error(`failed to scan ${ch}:`, e.errorMessage || e.message);
     }
@@ -109,12 +110,13 @@ function isJobPost(text) {
   const looksLikeDev = ROLE_WORD_RE.test(firstLine);
   const hasJS = JS_TECH_RE.test(text);
 
-  // Old: indicator-based (no contact required)
+  // Any of the strict paths
   if (hasIndicator && looksLikeDev) return true;
   if (hasIndicator && hasContact) return true;
-
-  // New: contact + dev role or JS keywords
   if (hasContact && (looksLikeDev || hasJS)) return true;
+
+  // Permissive: first line has a dev role + message is long enough to be a real post
+  if (looksLikeDev && text.length > 80) return true;
 
   return false;
 }
