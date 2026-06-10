@@ -19,6 +19,15 @@ Copy .env.example → .env and fill values.
 | `TG_API_HASH` | Там же, `App api_hash` |
 | `TG_CHANNELS` | Список каналів через кому (без @), наприклад: `JOBITT_Ukraine,itexpert_vacancies` |
 | `REMOTE_OK` | `true` — додатково парсити RemoteOK, `false` — тільки Telegram канали |
+| `REMOTE_OK_TAGS` | Теги RemoteOK через кому, наприклад `javascript,nodejs,react,typescript` |
+| `MIN_SCORE` | Мінімальний бал вакансії для відправки, типово `4` |
+
+Рекомендований стартовий набір каналів:
+```env
+TG_CHANNELS=IT_Jobs_work,JOBITT_Ukraine,itexpert_vacancies,jobotun
+```
+
+Канали краще додавати поступово й дивитися на `parsed/matched` у логах. Якщо канал дає багато `parsed`, але `0 matched`, він або не про JavaScript/Node/React, або парсер потребує окремого правила під формат цього каналу.
 
 ### Перший запуск
 ```bash

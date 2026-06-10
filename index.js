@@ -1,8 +1,8 @@
 import 'dotenv/config';
 import TelegramBot from 'node-telegram-bot-api';
 import readline from 'readline';
-import { fetchJobs } from './fetchJobs.js';
 import { filterJobs } from './filterJobs.js';
+import { explainScoreJob } from './scoreJob.js';
 import {
   createClient, isLoggedIn, login, connectWithSession,
   joinChannels, onMessage, scanHistory, getChannels, resolveChannel, getClient,
@@ -10,7 +10,6 @@ import {
 
 const bot = new TelegramBot(process.env.BOT_TOKEN, { polling: true });
 const CHAT_ID = process.env.CHAT_ID;
-const USE_REMOTE_OK = process.env.REMOTE_OK !== 'false';
 
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 function ask(q) { return new Promise(resolve => rl.question(q, resolve)); }
@@ -25,6 +24,15 @@ async function sendJob(job) {
 
 async function tell(msg) {
   try { await bot.sendMessage(CHAT_ID, msg); } catch {}
+}
+
+function rejectedSummary(jobs, limit = 5) {
+  return jobs
+    .map(job => ({ job, ...explainScoreJob(job) }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map(({ job, score, reason }) => `• [${job.channel || '?'}] ${job.title} (${score}) — ${reason}`)
+    .join('\n');
 }
 
 // ── commands ──
@@ -86,16 +94,18 @@ bot.onText(/\/raw/, async (msg) => {
 });
 
 bot.onText(/\/now/, async (msg) => {
-  await bot.sendMessage(msg.chat.id, '🔍 Сканую за 3 дні...');
+  await bot.sendMessage(msg.chat.id, '🔍 Сканую за 7 днів...');
   try {
-    const jobs = await scanHistory(3);
+    const jobs = await scanHistory(7);
     if (!jobs.length) {
       await bot.sendMessage(msg.chat.id, '😕 Нічого не знайдено (0 повідомлень розпарсено). Перевір логи в консолі.');
       return;
     }
     const filtered = filterJobs(jobs);
       if (!filtered.length) {
-        await bot.sendMessage(msg.chat.id, `😕 Жодна вакансія не пройшла фільтр (розпарсено ${jobs.length} повідомлень).`);
+        const summary = rejectedSummary(jobs);
+        const details = summary ? `\n\nНайближчі відхилені:\n${summary}` : '';
+        await bot.sendMessage(msg.chat.id, `😕 Жодна вакансія не пройшла фільтр (розпарсено ${jobs.length} повідомлень).${details}`);
       return;
     }
     for (const job of filtered) {
@@ -134,7 +144,13 @@ async function initTG() {
   const historyJobs = await scanHistory(14);
   const filtered = filterJobs(historyJobs);
   console.log(`history: ${historyJobs.length} parsed, ${filtered.length} matched`);
-  await tell(`📊 Сканування: ${historyJobs.length} повідомлень, знайдено ${filtered.length} вакансій`);
+  let scanDetails = '';
+  if (historyJobs.length && !filtered.length) {
+    const summary = rejectedSummary(historyJobs);
+    console.log(`top rejected:\n${summary}`);
+    scanDetails = summary ? `\n\nНайближчі відхилені:\n${summary}` : '';
+  }
+  await tell(`📊 Сканування: ${historyJobs.length} повідомлень, знайдено ${filtered.length} вакансій${scanDetails}`);
 
   for (const job of filtered) {
     try { await sendJob(job); } catch (e) { console.error('send failed:', job.title, e.message); }
@@ -148,17 +164,6 @@ async function initTG() {
   });
 }
 
-async function runRemoteOK() {
-  try {
-    const jobs = await fetchJobs();
-    const filtered = filterJobs(jobs);
-    console.log(`remoteok: ${jobs.length} jobs, ${filtered.length} matched`);
-    for (const job of filtered) {
-      try { await sendJob(job); } catch {}
-    }
-  } catch (e) { console.error('remoteok failed:', e.message); }
-}
-
 // ── main ──
 
 async function main() {
@@ -167,11 +172,6 @@ async function main() {
   } catch (e) {
     console.error('tg init failed:', e.message);
     await tell(`❌ Помилка TG: ${e.message}`).catch(() => {});
-  }
-
-  if (USE_REMOTE_OK) {
-    setInterval(runRemoteOK, 1000 * 60 * 10);
-    runRemoteOK();
   }
 
   rl.close();

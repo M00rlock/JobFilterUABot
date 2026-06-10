@@ -75,10 +75,13 @@ export async function scanHistory(daysBack = 7, limit = 200) {
       for (const msg of msgs) {
         if (msg.message && msg.date && typeof msg.message === 'string' && msg.date >= since) {
           const job = parseJob(msg, ch);
-          if (job) { allJobs.push(job); matched++; }
+          if (job) {
+            console.log(`  parsed [${ch}]: ${job.title}`);
+            allJobs.push(job);
+            matched++;
+          }
         }
       }
-      console.log(`scanned ${ch}: ${msgs.length} msgs, ${matched} parsed`);
     } catch (e) {
       console.error(`failed to scan ${ch}:`, e.errorMessage || e.message);
     }
@@ -96,13 +99,15 @@ const JOB_INDICATORS = [
 ];
 
 const EMOJI_RE = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{27BF}\u{2B50}\u{2702}-\u{27B0}\u{24C2}-\u{1F251}\u{200D}\u{FE0F}]/gu;
+const JS_TECH_RE = /\b(javascript|js|node(?:\.js)?|typescript|ts|react|vue|angular)\b/i;
+const ROLE_WORD_RE = /(?:\b(developers?|engineers?|architects?|backends?|frontends?|front[-\s]?ends?|full[-\s]?stacks?|devops|managers?|seniors?|leads?|designers?|specialists?|admins?|software|data|qa|testers?|analysts?|products?|heads?|directors?|technical|systems?|teams?|engineering|middles?|trainees?|interns?|juniors?|graphic|smm|digital)\b|розробник[а-яіїєґ']*|інженер[а-яіїєґ']*|архітектор[а-яіїєґ']*)/iu;
 
 function isJobPost(text) {
   const hasContact = /@[a-zA-Z0-9_.-]{3,}/.test(text) || /https?:\/\/[^\s]+/.test(text);
   const hasIndicator = JOB_INDICATORS.some(r => r.test(text));
   const firstLine = text.split('\n')[0];
-  const looksLikeDev = /(?:developer|engineer|розробник|інженер|backend|frontend|fullstack|devops|architect|manager|lead|senior|middle|specialist|designer|admin|data|software)/i.test(firstLine);
-  const hasJS = /(?:javascript|js|node|typescript|ts|react|vue|angular)/i.test(text);
+  const looksLikeDev = ROLE_WORD_RE.test(firstLine);
+  const hasJS = JS_TECH_RE.test(text);
 
   // Old: indicator-based (no contact required)
   if (hasIndicator && looksLikeDev) return true;
@@ -118,19 +123,17 @@ function stripEmoji(s) {
   return s.replace(EMOJI_RE, '').replace(/[*#⃣▪️▫️☑️🔹🔸🔺🔥💼📌📍💻⚡✅🟢🔵🟣🔘👉]/g, '').trim();
 }
 
-const ROLE_WORD_RE = /\b(developer|engineer|розробник|інженер|architect|backend|frontend|fullstack|devops|manager|senior|lead|designer|specialist|admin|software|data|qa|tester|analyst|product|head|director|technical|systems|system|team|engineering|middle|trainee|intern|junior|graphic|smm|digital)s?\b/i;
-
 // Titles that start with these are not real job titles
 const NON_TITLE_RE = /^(мінімум|до|від|для|про|та|але|це|хто|що|як|my|this|we|our|the|a\b|an\b)/i;
 const NEWS_VERBS = /(створив|створила|випустив|запустив|представив|анонсував|повідомив|розповів|опублікував|вийшло|вийшла)/i;
-const TITLE_FIRST_WORD = /^(senior|middle|lead|junior|head|chief|full|frontend|backend|devops|software|data|tech|technical|розробник|інженер|архітектор|specialist|manager|engineer|developer|architect|director|systems|system|embedded|hardware|python|java|go|rust|c\+\+|ruby|qa|tester|analyst|product|project|team|engineering|strong|middle\+|trainee|intern|graphic|smm|digital)/i;
+const TITLE_FIRST_WORD = /^(senior|middle|lead|junior|head|chief|full|frontend|front-end|backend|devops|software|data|tech|technical|javascript|node(?:\.js)?|typescript|react|vue|angular|розробник|інженер|архітектор|specialist|manager|engineer|developer|architect|director|systems|system|embedded|hardware|python|java|go|rust|c\+\+|ruby|qa|tester|analyst|product|project|team|engineering|strong|middle\+|trainee|intern|graphic|smm|digital)/i;
 
 function extractTitle(text) {
   const firstLine = text.split('\n')[0];
   if (!firstLine) return null;
 
   // Method 1: indicator prefix
-  const indicator = firstLine.match(/(?:looking for|шукаємо|потрібен|потрібна|потрібно|вакансі[яї])[:\s─–—]*/i);
+  const indicator = firstLine.match(/(?:looking for|we are looking(?:\s+for)?|we need|we are hiring|шукаємо|потрібен|потрібна|потрібно|вакансі[яї]|відкрит[ао](?:\s+позиці[яї])?|позиці[яї])[:\s─–—]*/i);
   if (indicator) {
     const after = firstLine.slice(indicator.index + indicator[0].length);
     const title = stripEmoji(after).split(/\s+/).slice(0, 12).join(' ');
@@ -150,7 +153,7 @@ function extractTitle(text) {
   }
 
   // Method 3: explicit JS keyword (word boundary) in full text — accept first line
-  if (/\b(javascript|node|typescript|react|vue|angular)\b/i.test(text)) {
+  if (JS_TECH_RE.test(text)) {
     if (!NON_TITLE_RE.test(clean) && !NEWS_VERBS.test(clean) && ROLE_WORD_RE.test(clean)) return clean;
   }
 
@@ -161,18 +164,18 @@ function extractLink(text, ch, msgId) {
   const url = text.match(/https?:\/\/[^\s\n]+/);
   if (url) return url[0];
 
+  if (ch && msgId) return `https://t.me/${ch}/${msgId}`;
+
   const email = text.match(/[\w.+-]+@[\w-]+\.[\w.+-]+/);
   if (email) return `mailto:${email[0]}`;
 
   const tg = text.match(/@[a-zA-Z0-9_.-]{3,}/);
   if (tg) return `https://t.me/${tg[0].slice(1)}`;
 
-  if (ch && msgId) return `https://t.me/${ch}/${msgId}`;
-
   return '';
 }
 
-function parseJob(msg, ch) {
+export function parseJob(msg, ch) {
   const text = msg.message;
   if (!isJobPost(text)) return null;
 
@@ -185,6 +188,7 @@ function parseJob(msg, ch) {
     url: extractLink(text, ch || '', msg.id),
     company: '',
     location: 'Ukraine',
+    channel: ch,
   };
 }
 
