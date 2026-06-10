@@ -75,6 +75,9 @@ export function explainScoreJob(job) {
   if (/\bgo\b(?!\s*lang)/i.test(fullText) && !fullText.includes('golang')) {
     return { score: -100, reason: 'other stack: go' };
   }
+  if (/\breact\b(?!\s*native)/i.test(titleText)) {
+    return { score: -100, reason: 'react' };
+  }
 
   // Block LinkedIn links
   if (/linkedin\.com\//i.test(job.url || '') || /linkedin\.com\//i.test(fullText)) {
