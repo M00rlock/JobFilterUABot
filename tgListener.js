@@ -22,10 +22,11 @@ export async function createClient() {
   return client;
 }
 
-export async function login(phoneNumber, onCode) {
+export async function login(phoneNumber, onCode, onPassword) {
   await client.start({
     phoneNumber,
     phoneCode: onCode,
+    password: onPassword,
     onError: (err) => console.error('login error:', err),
   });
   writeFileSync(SESSION_FILE, client.session.save());

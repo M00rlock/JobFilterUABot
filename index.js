@@ -35,7 +35,11 @@ async function initTG() {
     await connectWithSession();
   } else {
     const phone = await ask('phone (e.g. +380...): ');
-    await login(phone, async () => await ask('code from telegram: '));
+    await login(
+      phone,
+      async () => await ask('code from telegram: '),
+      async () => await ask('2FA password: ')
+    );
   }
 
   await joinChannels();
