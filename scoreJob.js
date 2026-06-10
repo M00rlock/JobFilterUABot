@@ -20,6 +20,7 @@ const STACK_PENALTIES = [
   ['.net', /\.net/i],
   ['embedded/hardware', /embed(?:ded)?|hardware/i],
   ['devops', /devops/i],
+  ['web3/blockchain', /\b(?:web3|blockchain|solidity)\b/i],
   ['react native', /\breact\s+native\b/i],
   ['reactjs', /\breactjs\b/i],
 ];
