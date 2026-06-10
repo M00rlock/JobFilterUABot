@@ -65,14 +65,8 @@ export async function scanHistory(daysBack = 7) {
 
   for (const ch of CHANNELS) {
     try {
-      const resolved = await client.invoke(new Api.contacts.ResolveUsername({ username: ch }));
-      const channel = resolved.chats?.find(c => c.className === 'Channel');
-      if (!channel) { console.error(`cannot resolve ${ch}: no channel`); continue; }
-
-      const peer = new Api.InputPeerChannel({
-        channelId: channel.id,
-        accessHash: channel.accessHash,
-      });
+      const peer = await resolveChannel(ch);
+      if (!peer) { console.error(`cannot resolve ${ch}`); continue; }
 
       const result = await client.invoke(new Api.messages.GetHistory({ peer, limit: 100 }));
       const msgs = result.messages || [];
@@ -104,34 +98,32 @@ const JOB_INDICATORS = [
 function isJobPost(text) {
   const hasContact = /@[a-zA-Z0-9_.-]{3,}/.test(text) || /https?:\/\/[^\s]+/.test(text);
   const hasIndicator = JOB_INDICATORS.some(r => r.test(text));
-  return hasContact && hasIndicator;
+  if (hasIndicator && hasContact) return true;
+  if (hasIndicator && /(?:senior|lead|developer|engineer|розробник|architect|manager|devops|backend|frontend|fullstack|data)/i.test(text)) return true;
+  return false;
 }
 
 function extractTitle(text) {
   const firstLine = text.split('\n')[0];
   if (!firstLine) return null;
 
-  let clean = firstLine
-    .replace(/[*#⃣▪️▫️☑️🔹🔸🔺🔥💼📌📍💻⚡✅🟢🔵🟣🔘]/g, '')
-    .replace(/^(?:\s*#\w+\s*)+/, '')
-    .trim();
-
-  if (!clean || clean.length < 3 || clean.length > 120) return null;
-
-  const structured = [
-    /(?:looking for|шукаємо|потрібен|потрібна|потрібно|вакансі[яї])[:\s─]*([A-Za-zА-Яа-яіїєґІЇЄҐ][^▪📌🔥\n]{3,80})/i,
-  ];
-
-  for (const p of structured) {
-    const m = clean.match(p);
-    if (m && m[1]) {
-      const t = m[1].replace(/\s+/g, ' ').trim();
-      if (t.length >= 3 && t.length <= 80) return t;
-    }
+  const indicator = firstLine.match(/(?:looking for|шукаємо|потрібен|потрібна|потрібно|вакансі[яї])[:\s─–—]*/i);
+  if (indicator) {
+    const after = firstLine.slice(indicator.index + indicator[0].length);
+    const title = after.replace(/[@#▪📌🔥👉☑️🔘]/g, '').trim().split(/\s+/).slice(0, 12).join(' ');
+    if (title && title.length >= 3 && title.length <= 80) return title;
   }
 
-  if (/develop|engineer|розробник|інженер|architect|manager|lead|senior|specialist|designer|analyst|devops|admin/i.test(clean) && clean.length < 60) {
-    return clean.replace(/^[^a-zA-Zа-яА-ЯіїєґІЇЄҐ]+/, '').trim();
+  const roleMatch = firstLine.match(/(senior|lead|middle)\s+[A-Za-zА-Яа-яіїєґІЇЄҐ][A-Za-zА-Яа-яіїєґІЇЄҐ\s().,-]{3,60}/i);
+  if (roleMatch) return roleMatch[0].trim();
+
+  const clean = firstLine
+    .replace(/[@#*▪📌🔥👉☑️🔘]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (clean && /(?:developer|engineer|розробник|інженер|architect|manager|analyst|devops|admin|backend|frontend|fullstack|specialist|designer)/i.test(clean) && clean.length >= 3 && clean.length <= 80) {
+    return clean.split(/[▪📌🔥👉]/)[0].trim();
   }
 
   return null;
@@ -166,4 +158,14 @@ function parseJob(msg) {
   };
 }
 
+export async function resolveChannel(username) {
+  try {
+    const resolved = await client.invoke(new Api.contacts.ResolveUsername({ username }));
+    const channel = resolved.chats?.find(c => c.className === 'Channel');
+    if (!channel) return null;
+    return new Api.InputPeerChannel({ channelId: channel.id, accessHash: channel.accessHash });
+  } catch { return null; }
+}
+
+export function getClient() { return client; }
 export function getChannels() { return CHANNELS; }

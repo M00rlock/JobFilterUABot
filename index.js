@@ -5,7 +5,7 @@ import { fetchJobs } from './fetchJobs.js';
 import { filterJobs } from './filterJobs.js';
 import {
   createClient, isLoggedIn, login, connectWithSession,
-  joinChannels, onMessage, scanHistory, getChannels,
+  joinChannels, onMessage, scanHistory, getChannels, resolveChannel,
 } from './tgListener.js';
 
 const bot = new TelegramBot(process.env.BOT_TOKEN, { polling: true });
@@ -39,6 +39,7 @@ bot.setMyCommands([
   { command: 'now', description: 'Примусово перевірити вакансії зараз' },
   { command: 'channels', description: 'Список каналів' },
   { command: 'status', description: 'Статус бота' },
+  { command: 'raw', description: 'Показати сирі повідомлення (діагностика)' },
 ]);
 
 bot.onText(/\/start/, async (msg) => {
@@ -61,6 +62,30 @@ bot.onText(/\/channels/, async (msg) => {
 bot.onText(/\/status/, async (msg) => {
   const s = isLoggedIn() ? '✅ Увійшов' : '❌ Не авторизований';
   await bot.sendMessage(msg.chat.id, `🤖 Статус: працюю\n${s}`);
+});
+
+bot.onText(/\/raw/, async (msg) => {
+  await bot.sendMessage(msg.chat.id, '👀 Беру перші повідомлення...');
+  try {
+    const { Api } = await import('teleproto');
+    const ch = getChannels()[0];
+    const peer = await resolveChannel(ch);
+    if (!peer) { await bot.sendMessage(msg.chat.id, `❌ Не вдалось резолвнути ${ch}`); return; }
+
+    const client = (await import('./tgListener.js')).getClient?.();
+    if (!client) { await bot.sendMessage(msg.chat.id, '❌ Клієнт ще не ініціалізовано'); return; }
+
+    const hist = await client.invoke(new Api.messages.GetHistory({ peer, limit: 3 }));
+    const msgs = hist.messages || [];
+
+    for (const m of msgs) {
+      if (m._ === 'message' && m.message) {
+        await bot.sendMessage(msg.chat.id, `📄 ${ch}:\n\n${m.message.slice(0, 300)}`);
+      }
+    }
+  } catch (e) {
+    await bot.sendMessage(msg.chat.id, `❌ ${e.errorMessage || e.message}`);
+  }
 });
 
 bot.onText(/\/now/, async (msg) => {
