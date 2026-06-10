@@ -94,9 +94,9 @@ bot.onText(/\/raw/, async (msg) => {
 });
 
 bot.onText(/\/now/, async (msg) => {
-  await bot.sendMessage(msg.chat.id, '🔍 Сканую за 7 днів...');
+  await bot.sendMessage(msg.chat.id, '🔍 Сканую за 14 днів...');
   try {
-    const jobs = await scanHistory(7);
+    const jobs = await scanHistory(14);
     if (!jobs.length) {
       await bot.sendMessage(msg.chat.id, '😕 Нічого не знайдено (0 повідомлень розпарсено). Перевір логи в консолі.');
       return;
