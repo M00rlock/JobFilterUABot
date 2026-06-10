@@ -78,6 +78,9 @@ export function explainScoreJob(job) {
   if (/\breact\b(?!\s*native)/i.test(titleText)) {
     return { score: -100, reason: 'react' };
   }
+  if (/\btypescript\b/i.test(titleText) || /\bts\b(?!\w)/i.test(titleText.replace(/[^a-z0-9\s]/g, ' '))) {
+    return { score: -100, reason: 'typescript' };
+  }
 
   // Block LinkedIn links
   if (/linkedin\.com\//i.test(job.url || '') || /linkedin\.com\//i.test(fullText)) {
