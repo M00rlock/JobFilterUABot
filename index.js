@@ -5,7 +5,7 @@ import { fetchJobs } from './fetchJobs.js';
 import { filterJobs } from './filterJobs.js';
 import {
   createClient, isLoggedIn, login, connectWithSession,
-  joinChannels, onMessage, scanHistory, getChannels, resolveChannel,
+  joinChannels, onMessage, scanHistory, getChannels, resolveChannel, getClient,
 } from './tgListener.js';
 
 const bot = new TelegramBot(process.env.BOT_TOKEN, { polling: true });
@@ -65,18 +65,20 @@ bot.onText(/\/status/, async (msg) => {
 });
 
 bot.onText(/\/raw/, async (msg) => {
+  const { Api } = await import('teleproto');
+  const client = getClient();
+  if (!client) { await bot.sendMessage(msg.chat.id, '❌ Клієнт не готовий'); return; }
+
   await bot.sendMessage(msg.chat.id, '👀 Беру перші повідомлення...');
   try {
-    const { Api } = await import('teleproto');
     const ch = getChannels()[0];
     const peer = await resolveChannel(ch);
     if (!peer) { await bot.sendMessage(msg.chat.id, `❌ Не вдалось резолвнути ${ch}`); return; }
 
-    const client = (await import('./tgListener.js')).getClient?.();
-    if (!client) { await bot.sendMessage(msg.chat.id, '❌ Клієнт ще не ініціалізовано'); return; }
-
     const hist = await client.invoke(new Api.messages.GetHistory({ peer, limit: 3 }));
     const msgs = hist.messages || [];
+
+    if (!msgs.length) { await bot.sendMessage(msg.chat.id, '❌ Немає повідомлень'); return; }
 
     for (const m of msgs) {
       if (m._ === 'message' && m.message) {
@@ -84,7 +86,7 @@ bot.onText(/\/raw/, async (msg) => {
       }
     }
   } catch (e) {
-    await bot.sendMessage(msg.chat.id, `❌ ${e.errorMessage || e.message}`);
+    await bot.sendMessage(msg.chat.id, `❌ Помилка: ${e.errorMessage || e.message || e}`);
   }
 });
 
