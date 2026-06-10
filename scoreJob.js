@@ -7,6 +7,7 @@ const GENERIC_ENGINEER_RE = /\bsoftware\s+engineer\b|\bengineer\b|інженер
 const NEGATIVE_RE = /\b(junior|júnior|jãºnior|intern|internship|trainee)\b|стаж|стажування/i;
 const STACK_PENALTIES = [
   ['java', /\bjava\b(?!\s*script)/i],
+  ['kotlin', /\bkotlin\b/i],
   ['python', /python/i],
   ['ruby', /ruby/i],
   ['c++', /c\+\+/i],
