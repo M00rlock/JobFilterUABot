@@ -5,6 +5,7 @@
   "main": "index.js",
   "dependencies": {
     "dotenv": "^17.4.2",
-    "node-telegram-bot-api": "^0.64.0"
+    "node-telegram-bot-api": "^0.64.0",
+    "teleproto": "^1.227.0"
   }
 }
