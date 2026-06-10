@@ -67,9 +67,13 @@ bot.onText(/\/now/, async (msg) => {
   await bot.sendMessage(msg.chat.id, '🔍 Сканую...');
   try {
     const jobs = await scanHistory(1);
+    if (!jobs.length) {
+      await bot.sendMessage(msg.chat.id, '😕 Нічого не знайдено (0 повідомлень розпарсено). Перевір логи в консолі.');
+      return;
+    }
     const filtered = filterJobs(jobs);
     if (!filtered.length) {
-      await bot.sendMessage(msg.chat.id, `😕 Нічого не знайдено (переглянув ${jobs.length} повідомлень)`);
+      await bot.sendMessage(msg.chat.id, `😕 Жодна вакансія не пройшла фільтр (розпарсено ${jobs.length} повідомлень).`);
       return;
     }
     for (const job of filtered) {

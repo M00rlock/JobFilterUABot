@@ -65,18 +65,28 @@ export async function scanHistory(daysBack = 7) {
 
   for (const ch of CHANNELS) {
     try {
-      const entity = await client.getEntity(ch);
-      const msgs = await client.getMessages(entity, { limit: 100 });
+      const resolved = await client.invoke(new Api.contacts.ResolveUsername({ username: ch }));
+      const channel = resolved.chats?.find(c => c.className === 'Channel');
+      if (!channel) { console.error(`cannot resolve ${ch}: no channel`); continue; }
+
+      const peer = new Api.InputPeerChannel({
+        channelId: channel.id,
+        accessHash: channel.accessHash,
+      });
+
+      const result = await client.invoke(new Api.messages.GetHistory({ peer, limit: 100 }));
+      const msgs = result.messages || [];
       let matched = 0;
+
       for (const msg of msgs) {
-        if (msg.message && msg.date >= since) {
+        if (msg._ === 'message' && msg.message && msg.date >= since) {
           const job = parseJob(msg);
           if (job) { allJobs.push(job); matched++; }
         }
       }
-      console.log(`scanned ${msgs.length} msgs from ${ch}, parsed ${matched} jobs`);
+      console.log(`scanned ${ch}: ${msgs.length} msgs, ${matched} parsed`);
     } catch (e) {
-      console.error(`failed to scan ${ch}:`, e.message);
+      console.error(`failed to scan ${ch}:`, e.errorMessage || e.message);
     }
   }
 
