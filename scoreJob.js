@@ -1,12 +1,20 @@
 import { roleKeywords, techKeywords, domainKeywords, negativeKeywords } from './keywords.js';
 
 const REQUIRED = [
-  'javascript', 'js', 'node', 'nodejs', 'typescript', 'ts',
+  'javascript', 'node', 'nodejs', 'typescript',
   'react', 'reactjs', 'vue', 'vuejs', 'angular',
 ];
 
+const REQ_SHORT = [/\bjs\b/i, /\bts\b/i];
+
 function matchCount(text, keywords) {
   return keywords.filter(k => text.includes(k)).length;
+}
+
+function hasRequired(titleText) {
+  if (REQUIRED.some(k => titleText.includes(k))) return true;
+  if (REQ_SHORT.some(r => r.test(titleText))) return true;
+  return false;
 }
 
 export function scoreJob(job) {
@@ -14,7 +22,7 @@ export function scoreJob(job) {
   const fullText = (job.title + ' ' + job.description).toLowerCase();
 
   // Required: title must mention JS/Node/TS/React/Vue/Angular
-  if (!REQUIRED.some(k => titleText.includes(k))) return 0;
+  if (!hasRequired(titleText)) return 0;
 
   // Negative: junior/intern/trainee
   if (negativeKeywords.some(k => fullText.includes(k))) return -100;
