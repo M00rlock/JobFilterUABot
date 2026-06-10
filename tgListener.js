@@ -7,9 +7,7 @@ const CHANNELS = (process.env.TG_CHANNELS || '').split(',').map(s => s.trim()).f
 
 let client = null;
 
-export function isLoggedIn() {
-  return existsSync(SESSION_FILE);
-}
+export function isLoggedIn() { return existsSync(SESSION_FILE); }
 
 export async function createClient() {
   const sessionStr = isLoggedIn() ? readFileSync(SESSION_FILE, 'utf-8').trim() : '';
@@ -24,27 +22,20 @@ export async function createClient() {
 
 export async function login(phoneNumber, onCode, onPassword) {
   await client.start({
-    phoneNumber,
-    phoneCode: onCode,
-    password: onPassword,
+    phoneNumber, phoneCode: onCode, password: onPassword,
     onError: (err) => console.error('login error:', err),
   });
   writeFileSync(SESSION_FILE, client.session.save());
 }
 
-export async function connectWithSession() {
-  await client.start();
-}
+export async function connectWithSession() { await client.start(); }
 
 export async function joinChannels() {
   for (const ch of CHANNELS) {
     try {
       await client.invoke(new Api.channels.JoinChannel({ channel: ch }));
-      console.log('joined', ch);
     } catch (e) {
-      if (e.errorMessage !== 'CHANNELS_TOO_MUCH') {
-        console.error('failed to join', ch, e.errorMessage || e.message);
-      }
+      if (e.errorMessage !== 'CHANNELS_TOO_MUCH') console.error('failed to join', ch, e.errorMessage || e.message);
     }
   }
 }
@@ -57,6 +48,15 @@ export function onMessage(handler) {
     const job = parseJob(msg);
     if (job) handler(job);
   });
+}
+
+export async function resolveChannel(username) {
+  try {
+    const resolved = await client.invoke(new Api.contacts.ResolveUsername({ username }));
+    const channel = resolved.chats?.find(c => c.className === 'Channel');
+    if (!channel) return null;
+    return new Api.InputPeerChannel({ channelId: channel.id, accessHash: channel.accessHash });
+  } catch { return null; }
 }
 
 export async function scanHistory(daysBack = 7) {
@@ -74,8 +74,7 @@ export async function scanHistory(daysBack = 7) {
 
       for (const msg of msgs) {
         if (msg.message && msg.date && typeof msg.message === 'string' && msg.date >= since) {
-          if (!matched) console.log(`[first ${ch}] ${msg.message.slice(0, 120).replace(/\n/g,' | ')}`);
-          const job = parseJob(msg);
+          const job = parseJob(msg, ch);
           if (job) { allJobs.push(job); matched++; }
         }
       }
@@ -96,12 +95,18 @@ const JOB_INDICATORS = [
   /(?:відгукнутися|apply|надіслати|резюме)/i,
 ];
 
+const EMOJI_RE = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{27BF}\u{2B50}\u{2702}-\u{27B0}\u{24C2}-\u{1F251}\u{200D}\u{FE0F}]/gu;
+
 function isJobPost(text) {
   const hasContact = /@[a-zA-Z0-9_.-]{3,}/.test(text) || /https?:\/\/[^\s]+/.test(text);
   const hasIndicator = JOB_INDICATORS.some(r => r.test(text));
   if (hasIndicator && hasContact) return true;
   if (hasIndicator && /(?:senior|lead|developer|engineer|розробник|architect|manager|devops|backend|frontend|fullstack|data)/i.test(text)) return true;
   return false;
+}
+
+function stripEmoji(s) {
+  return s.replace(EMOJI_RE, '').replace(/[*#⃣▪️▫️☑️🔹🔸🔺🔥💼📌📍💻⚡✅🟢🔵🟣🔘👉]/g, '').trim();
 }
 
 function extractTitle(text) {
@@ -111,39 +116,36 @@ function extractTitle(text) {
   const indicator = firstLine.match(/(?:looking for|шукаємо|потрібен|потрібна|потрібно|вакансі[яї])[:\s─–—]*/i);
   if (indicator) {
     const after = firstLine.slice(indicator.index + indicator[0].length);
-    const title = after.replace(/[@#▪📌🔥👉☑️🔘]/g, '').trim().split(/\s+/).slice(0, 12).join(' ');
+    const title = stripEmoji(after).split(/\s+/).slice(0, 12).join(' ');
     if (title && title.length >= 3 && title.length <= 80) return title;
   }
 
-  const roleMatch = firstLine.match(/(senior|lead|middle)\s+[A-Za-zА-Яа-яіїєґІЇЄҐ][A-Za-zА-Яа-яіїєґІЇЄҐ\s().,-]{3,60}/i);
-  if (roleMatch) return roleMatch[0].trim();
+  const clean = stripEmoji(firstLine);
+  if (!clean || clean.length < 3 || clean.length > 80) return null;
 
-  const clean = firstLine
-    .replace(/[@#*▪📌🔥👉☑️🔘]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  if (clean && /(?:developer|engineer|розробник|інженер|architect|manager|analyst|devops|admin|backend|frontend|fullstack|specialist|designer)/i.test(clean) && clean.length >= 3 && clean.length <= 80) {
-    return clean.split(/[▪📌🔥👉]/)[0].trim();
+  if (/(?:developer|engineer|розробник|інженер|architect|manager|analyst|devops|admin|backend|frontend|fullstack|specialist|designer|lead|senior)/i.test(clean)) {
+    return clean;
   }
 
   return null;
 }
 
-function extractLink(text) {
-  const urlMatch = text.match(/https?:\/\/[^\s\n]+/);
-  if (urlMatch) return urlMatch[0];
+function extractLink(text, ch, msgId) {
+  const url = text.match(/https?:\/\/[^\s\n]+/);
+  if (url) return url[0];
 
-  const emailMatch = text.match(/[\w.+-]+@[\w-]+\.[\w.+-]+/);
-  if (emailMatch) return `mailto:${emailMatch[0]}`;
+  const email = text.match(/[\w.+-]+@[\w-]+\.[\w.+-]+/);
+  if (email) return `mailto:${email[0]}`;
 
-  const tgMatch = text.match(/@[a-zA-Z0-9_.-]{3,}/);
-  if (tgMatch) return `https://t.me/${tgMatch[0].slice(1)}`;
+  const tg = text.match(/@[a-zA-Z0-9_.-]{3,}/);
+  if (tg) return `https://t.me/${tg[0].slice(1)}`;
+
+  if (ch && msgId) return `https://t.me/${ch}/${msgId}`;
 
   return '';
 }
 
-function parseJob(msg) {
+function parseJob(msg, ch) {
   const text = msg.message;
   if (!isJobPost(text)) return null;
 
@@ -153,19 +155,10 @@ function parseJob(msg) {
   return {
     title,
     description: text,
-    url: extractLink(text),
+    url: extractLink(text, ch || '', msg.id),
     company: '',
     location: 'Ukraine',
   };
-}
-
-export async function resolveChannel(username) {
-  try {
-    const resolved = await client.invoke(new Api.contacts.ResolveUsername({ username }));
-    const channel = resolved.chats?.find(c => c.className === 'Channel');
-    if (!channel) return null;
-    return new Api.InputPeerChannel({ channelId: channel.id, accessHash: channel.accessHash });
-  } catch { return null; }
 }
 
 export function getClient() { return client; }

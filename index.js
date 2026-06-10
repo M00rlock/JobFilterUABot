@@ -19,8 +19,8 @@ function ask(q) { return new Promise(resolve => rl.question(q, resolve)); }
 
 async function sendJob(job) {
   const link = job.url || '';
-  const msg = `${job.title}\n${link}`;
-  await bot.sendMessage(CHAT_ID, msg, { disable_web_page_preview: true });
+  const msg = link ? `${job.title}\n${link}` : job.title;
+  await bot.sendMessage(CHAT_ID, msg, { disable_web_page_preview: false });
 }
 
 async function tell(msg) {
@@ -75,11 +75,11 @@ bot.onText(/\/raw/, async (msg) => {
 
     if (!msgs.length) { await bot.sendMessage(msg.chat.id, '❌ Немає повідомлень'); return; }
 
-    for (const m of msgs) {
-      if (m._ === 'message' && m.message) {
-        await bot.sendMessage(msg.chat.id, `📄 ${ch}:\n\n${m.message.slice(0, 300)}`);
+      for (const m of msgs) {
+        if (m.message) {
+          await bot.sendMessage(msg.chat.id, `📄 ${ch}:\n\n${m.message.slice(0, 300)}`);
+        }
       }
-    }
   } catch (e) {
     await bot.sendMessage(msg.chat.id, `❌ Помилка: ${e.errorMessage || e.message || e}`);
   }
