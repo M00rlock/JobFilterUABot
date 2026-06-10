@@ -59,7 +59,7 @@ export async function resolveChannel(username) {
   } catch { return null; }
 }
 
-export async function scanHistory(daysBack = 7) {
+export async function scanHistory(daysBack = 7, limit = 200) {
   const allJobs = [];
   const since = Math.floor(Date.now() / 1000) - daysBack * 24 * 3600;
 
@@ -68,7 +68,7 @@ export async function scanHistory(daysBack = 7) {
       const peer = await resolveChannel(ch);
       if (!peer) { console.error(`cannot resolve ${ch}`); continue; }
 
-      const result = await client.invoke(new Api.messages.GetHistory({ peer, limit: 100 }));
+      const result = await client.invoke(new Api.messages.GetHistory({ peer, limit }));
       const msgs = result.messages || [];
       let matched = 0;
 

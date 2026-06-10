@@ -2,8 +2,9 @@ export const roleKeywords = [
   'backend','node','nodejs','senior','старший','сеньйор',
   'lead','лід','tech lead','team lead','architect','архітектор',
   'full stack','fullstack','розробник','developer','engineer',
-  'devops', 'data', 'software', 'python', 'golang', 'go', 'rust',
-  'java', 'c++', 'typescript', '.net', 'ruby',
+  'devops', 'data', 'software', 'typescript',
+  'react', 'reactjs', 'angular', 'vue', 'vuejs',
+  'nextjs', 'express', 'nest',
 ];
 
 export const techKeywords = [

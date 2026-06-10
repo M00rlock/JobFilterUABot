@@ -86,9 +86,9 @@ bot.onText(/\/raw/, async (msg) => {
 });
 
 bot.onText(/\/now/, async (msg) => {
-  await bot.sendMessage(msg.chat.id, '🔍 Сканую...');
+  await bot.sendMessage(msg.chat.id, '🔍 Сканую за 3 дні...');
   try {
-    const jobs = await scanHistory(1);
+    const jobs = await scanHistory(3);
     if (!jobs.length) {
       await bot.sendMessage(msg.chat.id, '😕 Нічого не знайдено (0 повідомлень розпарсено). Перевір логи в консолі.');
       return;
@@ -131,7 +131,7 @@ async function initTG() {
 Канали: ${getChannels().length}
 Скануватиму за останній тиждень...`);
 
-  const historyJobs = await scanHistory(7);
+  const historyJobs = await scanHistory(14);
   const filtered = filterJobs(historyJobs);
   console.log(`history: ${historyJobs.length} parsed, ${filtered.length} matched`);
   await tell(`📊 Сканування: ${historyJobs.length} повідомлень, знайдено ${filtered.length} вакансій`);
