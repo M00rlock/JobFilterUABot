@@ -107,7 +107,8 @@ function isJobPost(text) {
   const hasContact = /@[a-zA-Z0-9_.-]{3,}/.test(text) || /https?:\/\/[^\s]+/.test(text);
   const hasIndicator = JOB_INDICATORS.some(r => r.test(text));
   const firstLine = text.split('\n')[0];
-  const looksLikeDev = ROLE_WORD_RE.test(firstLine);
+  const cleanFirst = firstLine.replace(EMOJI_RE, '').replace(/[*#⃣▪️▫️☑️🔹🔸🔺🔥💼📌📍💻⚡✅🟢🔵🟣🔘👉]/g, '').trim();
+  const looksLikeDev = ROLE_WORD_RE.test(cleanFirst) || ROLE_WORD_RE.test(firstLine);
   const hasJS = JS_TECH_RE.test(text);
 
   // Any of the strict paths
