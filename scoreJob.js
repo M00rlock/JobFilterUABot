@@ -1,19 +1,37 @@
 import { roleKeywords, techKeywords, domainKeywords, negativeKeywords } from './keywords.js';
 
-const REQUIRED = [
+const REQ_TITLE = [
   'javascript', 'node', 'nodejs', 'typescript',
   'react', 'reactjs', 'vue', 'vuejs', 'angular',
+  'frontend', 'fullstack', 'full stack',
 ];
 
+const DEV_TITLE_RE = /(developer|engineer|розробник|інженер|backend|frontend|fullstack|devops|architect|admin|specialist|designer|програміст)/i;
+
 const REQ_SHORT = [/\bjs\b/i, /\bts\b/i];
+
+// Tech keywords only — not including general role words
+const JS_TECH = [
+  'javascript', 'node', 'nodejs', 'typescript',
+  'react', 'reactjs', 'vue', 'vuejs', 'angular',
+  'nextjs', 'express', 'nest',
+];
 
 function matchCount(text, keywords) {
   return keywords.filter(k => text.includes(k)).length;
 }
 
-function hasRequired(titleText) {
-  if (REQUIRED.some(k => titleText.includes(k))) return true;
+function hasRequired(titleText, fullText) {
+  // Title directly mentions JS/TS/Node/React/frontend/fullstack
+  if (REQ_TITLE.some(k => titleText.includes(k))) return true;
   if (REQ_SHORT.some(r => r.test(titleText))) return true;
+
+  // Fallback: title looks like dev role AND full text mentions JS tech
+  if (DEV_TITLE_RE.test(titleText)) {
+    if (JS_TECH.some(k => fullText.includes(k))) return true;
+    if (REQ_SHORT.some(r => r.test(fullText))) return true;
+  }
+
   return false;
 }
 
@@ -21,13 +39,12 @@ export function scoreJob(job) {
   const titleText = job.title.toLowerCase();
   const fullText = (job.title + ' ' + job.description).toLowerCase();
 
-  // Required: title must mention JS/Node/TS/React/Vue/Angular
-  if (!hasRequired(titleText)) return 0;
+  if (!hasRequired(titleText, fullText)) return 0;
 
   // Negative: junior/intern/trainee
   if (negativeKeywords.some(k => fullText.includes(k))) return -100;
 
-  // Penalty for other stacks
+  // Penalty for other stacks (in full text)
   if (/\bjava\b(?!\s*script)/i.test(fullText)) return -100;
   if (fullText.includes('python')) return -100;
   if (fullText.includes('ruby')) return -100;

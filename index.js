@@ -94,8 +94,8 @@ bot.onText(/\/now/, async (msg) => {
       return;
     }
     const filtered = filterJobs(jobs);
-    if (!filtered.length) {
-      await bot.sendMessage(msg.chat.id, `😕 Жодна вакансія не пройшла фільтр (розпарсено ${jobs.length} повідомлень).`);
+      if (!filtered.length) {
+        await bot.sendMessage(msg.chat.id, `😕 Жодна вакансія не пройшла фільтр (розпарсено ${jobs.length} повідомлень).`);
       return;
     }
     for (const job of filtered) {
