@@ -33,6 +33,10 @@ export function scoreJob(job) {
     matchCount(fullText, techKeywords) * 3 +
     matchCount(fullText, domainKeywords) * 2;
 
+  // Must have at least one role keyword in title to be a valid job
+  const roleInTitle = roleKeywords.filter(k => titleText.includes(k)).length;
+  if (roleInTitle === 0) return 0;
+
   // Bonus for JS/Node/TS/React in the title
   if (JS_BONUS_RE.test(titleText)) score += 15;
 
